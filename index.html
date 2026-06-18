@@ -1,0 +1,1856 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comparison Quiz</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh; padding: 20px; color: #333;
+}
+.container { max-width: 700px; margin: 0 auto; }
+.header { text-align: center; color: #fff; padding: 30px 20px; }
+.header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+.header .meta { font-size: 14px; opacity: 0.9; }
+.progress-bar { background: rgba(255,255,255,0.3); border-radius: 10px; height: 8px; margin: 20px 0; overflow: hidden; }
+.progress-fill { background: #fff; height: 100%; width: 0%; transition: width 0.4s ease; border-radius: 10px; }
+.question { background: #fff; border-radius: 16px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.question.active { display: block; }
+.q-header { display: flex; justify-content: space-between; margin-bottom: 20px; font-size: 13px; color: #888; }
+.q-number { font-weight: 600; color: #667eea; }
+.q-text { font-size: 18px; font-weight: 600; line-height: 1.5; margin-bottom: 25px; color: #222; }
+.options { display: flex; flex-direction: column; gap: 12px; }
+.option-wrapper { display: flex; flex-direction: column; }
+.option {
+  display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px;
+  border: 2px solid #e8e8e8; border-radius: 12px; background: #fafafa;
+  cursor: pointer; transition: all 0.2s; text-align: left; font-size: 15px; width: 100%;
+}
+[dir="rtl"] .option { text-align: right; flex-direction: row-reverse; }
+.option:hover:not(.disabled) { border-color: #667eea; background: #f5f3ff; }
+.option.selected { border-color: #667eea; background: #ede9fe; }
+.option.correct { border-color: #22c55e; background: #dcfce7; }
+.option.incorrect { border-color: #ef4444; background: #fee2e2; }
+.option.disabled { cursor: default; }
+.option.show-correct { border-color: #22c55e; background: #dcfce7; }
+.opt-label {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%; background: #e8e8e8;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.option.selected .opt-label { background: #667eea; color: #fff; }
+.option.correct .opt-label { background: #22c55e; color: #fff; }
+.option.incorrect .opt-label { background: #ef4444; color: #fff; }
+.option.show-correct .opt-label { background: #22c55e; color: #fff; }
+.opt-text { padding-top: 5px; line-height: 1.5; }
+
+/* Individual option feedback */
+.option-feedback {
+  margin: 8px 0 4px 46px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+[dir="rtl"] .option-feedback { margin-left: 0; margin-right: 46px; }
+.option-feedback.correct-feedback {
+  background: #dcfce7;
+  border-left: 3px solid #22c55e;
+}
+.option-feedback.incorrect-feedback {
+  background: #fef3f2;
+  border-left: 3px solid #fca5a5;
+}
+[dir="rtl"] .option-feedback.correct-feedback,
+[dir="rtl"] .option-feedback.incorrect-feedback {
+  border-left: none;
+  border-right: 3px solid;
+}
+[dir="rtl"] .option-feedback.correct-feedback { border-right-color: #22c55e; }
+[dir="rtl"] .option-feedback.incorrect-feedback { border-right-color: #fca5a5; }
+.feedback-status {
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.feedback-status.correct { color: #166534; }
+.feedback-status.incorrect { color: #991b1b; }
+.feedback-rationale { color: #444; }
+
+/* Hint box */
+.hint-box {
+  margin: 12px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+}
+.hint-toggle {
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #92400e;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint-toggle:hover { background: #fef3c7; }
+.hint-content {
+  padding: 0 16px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s, padding 0.3s;
+  font-size: 14px;
+  color: #78350f;
+  line-height: 1.5;
+}
+.hint-box.show .hint-content {
+  padding: 0 16px 12px;
+  max-height: 200px;
+}
+
+.next-btn {
+  margin-top: 20px; width: 100%; padding: 14px;
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border: none;
+  border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.next-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(102,126,234,0.4); }
+.hidden { display: none !important; }
+.results { background: #fff; border-radius: 16px; padding: 40px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.15); display: none; }
+.results.active { display: block; }
+.results h2 { font-size: 28px; margin-bottom: 10px; color: #333; }
+.results .score { font-size: 64px; font-weight: 700; color: #667eea; margin: 20px 0; }
+.results .score-text { font-size: 18px; color: #666; margin-bottom: 30px; }
+.restart-btn {
+  padding: 14px 40px; background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+
+/* Math CSS */
+.math, .math-block { font-family: "Cambria Math", "Times New Roman", Times, serif; font-style: italic; }
+.math-block { display: block; text-align: center; margin: 10px 0; font-size: 110%; }
+.frac { display: inline-flex; flex-direction: column; align-items: center; vertical-align: middle; margin: 0 3px; font-size: 0.9em; }
+.frac-num { border-bottom: 1px solid currentColor; padding: 0 4px 2px; line-height: 1.2; }
+.frac-den { padding: 2px 4px 0; line-height: 1.2; }
+.sqrt { white-space: nowrap; }
+.sqrt-content { border-top: 1px solid currentColor; padding: 0 3px; margin-left: 2px; }
+sup, sub { font-size: 0.75em; }
+sup { vertical-align: super; }
+sub { vertical-align: sub; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>Comparison Quiz</h1>
+    <div class="meta">26 questions</div>
+    <div class="progress-bar"><div class="progress-fill"></div></div>
+  </div>
+  <div id="quiz-container">
+        <div class="question" data-index="0">
+          <div class="q-header">
+            <span class="q-number">Question 1</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">In a formal academic report, which modifier is most appropriate for a small difference in data?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Consider the register required for academic writing versus casual speech.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="This modifier is identified in the material as being informal and unsuitable for academic contexts.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">way</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This modifier is identified in the material as being informal and unsuitable for academic contexts.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="This is an informal modifier used to describe large, rather than small, differences.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">a lot</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This is an informal modifier used to describe large, rather than small, differences.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="This term is specifically categorized as a more formal or academic way to modify comparative adjectives.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">marginally</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This term is specifically categorized as a more formal or academic way to modify comparative adjectives.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="While it describes a small difference, it belongs to the informal category of modifiers.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">a bit</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">While it describes a small difference, it belongs to the informal category of modifiers.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="1">
+          <div class="q-header">
+            <span class="q-number">Question 2</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Which sentence correctly uses a structure to avoid repetition in a formal context?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Identify the formal substitute for a singular noun used to avoid repeating it.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="While 'the one' can avoid repetition, the text specifies 'that of' + noun as the preferred formal construction.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">The salary of a doctor is higher than the one of a nurse.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">While 'the one' can avoid repetition, the text specifies 'that of' + noun as the preferred formal construction.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="The phrase 'that of' is the correct formal structure to refer back to a singular noun like 'salary'.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">The salary of a doctor is higher than that of a nurse.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The phrase 'that of' is the correct formal structure to refer back to a singular noun like 'salary'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Using a possessive pronoun is noted as an informal way to avoid repetition.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">The salary of a doctor is higher than a nurse's.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Using a possessive pronoun is noted as an informal way to avoid repetition.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="This plural pronoun does not agree with the singular noun 'salary' being replaced.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">The salary of a doctor is higher than those of a nurse.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This plural pronoun does not agree with the singular noun 'salary' being replaced.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="2">
+          <div class="q-header">
+            <span class="q-number">Question 3</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">How should a superlative be emphasized to indicate a significant lead over others?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Look for the specific phrase used to make a 'most' statement even stronger.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="This phrase is used with equative 'as...as' structures to emphasize similarity, not superlatives.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">every bit</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This phrase is used with equative 'as...as' structures to emphasize similarity, not superlatives.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="While this modifies comparatives, the material lists specific terms like 'by far' or 'easily' for superlatives.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">considerably</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">While this modifies comparatives, the material lists specific terms like 'by far' or 'easily' for superlatives.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="The source material identifies 'by far' as a standard way to add emphasis to a superlative adjective or adverb.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">by far</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The source material identifies 'by far' as a standard way to add emphasis to a superlative adjective or adverb.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="This modifier is used for comparatives to show small differences, not for emphasizing superlatives.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">marginally</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This modifier is used for comparatives to show small differences, not for emphasizing superlatives.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="3">
+          <div class="q-header">
+            <span class="q-number">Question 4</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Which structure correctly describes two changes happening simultaneously and proportionally?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">This structure requires the use of the word 'the' before both comparative adjectives.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="While logically similar, this is a standard conditional rather than the specific proportional structure provided.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">If we practice more, we get better.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">While logically similar, this is a standard conditional rather than the specific proportional structure provided.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="This construction lacks the required definite articles necessary for the proportional comparative structure.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">More we practice, better we get.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This construction lacks the required definite articles necessary for the proportional comparative structure.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="The structure 'the' + comparative... 'the' + comparative correctly describes cause-and-effect changes.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">The more we practice, the better we get.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The structure 'the' + comparative... 'the' + comparative correctly describes cause-and-effect changes.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Using 'more' before an already comparative form like 'better' is grammatically redundant.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">The more we practice, the more better we get.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Using 'more' before an already comparative form like 'better' is grammatically redundant.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="4">
+          <div class="q-header">
+            <span class="q-number">Question 5</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Which phrase correctly completes a negative equative for strong emphasis?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Think about the specific adverbs used before 'as...as' to show a large negative gap.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="The source material highlights 'nowhere near' as a way to emphasize a negative equative comparison.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">The movie was nowhere near as good as the book.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The source material highlights 'nowhere near' as a way to emphasize a negative equative comparison.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="While common, this specific phrase is not listed in the provided material's section on negative emphasis.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">The movie was not nearly as good as the book.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">While common, this specific phrase is not listed in the provided material's section on negative emphasis.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="The correct emphatic negative structure is 'nothing like' or 'nowhere near', not 'nothing as'.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">The movie was nothing as good as the book.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The correct emphatic negative structure is 'nothing like' or 'nowhere near', not 'nothing as'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="This structure emphasizes similarity rather than a negative difference.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">The movie was just as good as the book.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This structure emphasizes similarity rather than a negative difference.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="5">
+          <div class="q-header">
+            <span class="q-number">Question 6</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">When comparing numerical values, which construction is grammatically correct according to the source?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">You can use a noun phrase like 'the speed of' or 'the value of' after the multiplier.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="This is a common error; numerical comparisons should use 'as...as' or 'the [noun] of'.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">The house is three times more price than mine.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This is a common error; numerical comparisons should use 'as...as' or 'the [noun] of'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="The 'as...as' structure requires an adjective or adverb, not a noun like 'price'.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">The house is three times as price as mine.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The 'as...as' structure requires an adjective or adverb, not a noun like 'price'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="The text lists 'three times the price of' as a valid alternative to 'three times as expensive as'.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">The house is three times the price of mine.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The text lists 'three times the price of' as a valid alternative to 'three times as expensive as'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="This lacks the necessary definite article 'the' required when using the noun phrase construction.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">The house is three times price of mine.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This lacks the necessary definite article 'the' required when using the noun phrase construction.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="6">
+          <div class="q-header">
+            <span class="q-number">Question 7</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Which of the following is an adverb used to introduce a fact that is similar to the one in the previous sentence?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Focus on words that link two separate sentences by highlighting their commonalities.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="This is a conjunction, not an adverb, and it is used for contrast.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">While</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This is a conjunction, not an adverb, and it is used for contrast.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="This is a conjunction used to join two contrasting clauses within the same sentence.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Whereas</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This is a conjunction used to join two contrasting clauses within the same sentence.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="This adverb is used to introduce a contrasting fact, not a similar one.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">By contrast</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This adverb is used to introduce a contrasting fact, not a similar one.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="The text identifies 'similarly' as an adverb used to introduce a similar fact in a new sentence.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Similarly</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The text identifies 'similarly' as an adverb used to introduce a similar fact in a new sentence.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="7">
+          <div class="q-header">
+            <span class="q-number">Question 8</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Which sentence correctly distinguishes between 'like' and 'as' based on formal usage before a verb?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">One of these words is preferred in formal writing when followed by a subject and a verb.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="The source states that 'as' should be used before a verb, especially in formal contexts.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">They often eat dinner late, as they do in Spain.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The source states that 'as' should be used before a verb, especially in formal contexts.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="The material notes that using 'like' before a verb is considered more informal.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">They often eat dinner late, like they do in Spain.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The material notes that using 'like' before a verb is considered more informal.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="The word 'similar' is typically followed by 'to + noun', not a whole clause with a verb.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">They often eat dinner late, similar to they do in Spain.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The word 'similar' is typically followed by 'to + noun', not a whole clause with a verb.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="While potentially correct, this removes the verb, whereas the question asks about usage 'before a verb'.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">They often eat dinner late, as in Spain.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">While potentially correct, this removes the verb, whereas the question asks about usage 'before a verb'.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="8">
+          <div class="q-header">
+            <span class="q-number">Question 9</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">In the phrase 'As a musician, I found the concert disappointing,' what is the function of the word 'As'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Think about whether the speaker is comparing themselves to a musician or speaking from the perspective of one.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Describing similarity is the function of 'like', not 'as' in this specific noun-based context.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">It describes something that is similar.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Describing similarity is the function of 'like', not 'as' in this specific noun-based context.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="In this specific structure (as + noun), it defines a role rather than contrasting two clauses.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">It functions as a conjunction of contrast.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">In this specific structure (as + noun), it defines a role rather than contrasting two clauses.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="An equative comparison requires the 'as...as' structure, which is not present here.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">It emphasizes an equative comparison.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">An equative comparison requires the 'as...as' structure, which is not present here.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="The text explicitly states that 'as + noun' means 'in the role of'.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">It means 'in the role of'.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The text explicitly states that 'as + noun' means 'in the role of'.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="9">
+          <div class="q-header">
+            <span class="q-number">Question 10</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Which structure is used to state a specific point of difference between two similar things?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Look for a phrase that includes a verb followed by a specific conjunction used to introduce a clause.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="This phrase introduces the second item of comparison rather than stating the specific nature of the difference.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Compared with...</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This phrase introduces the second item of comparison rather than stating the specific nature of the difference.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="The material provides 'differ in that' + clause as a way to specify a difference.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">They differ in that...</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The material provides 'differ in that' + clause as a way to specify a difference.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="This structure is used to describe how things are alike, not how they differ.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">They are similar in terms of...</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This structure is used to describe how things are alike, not how they differ.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="While used for contrast, this is a conjunction for clauses rather than a structure following the verb 'differ'.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Whereas...</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">While used for contrast, this is a conjunction for clauses rather than a structure following the verb 'differ'.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="10">
+          <div class="q-header">
+            <span class="q-number">Question 11</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Which of these is a formal way to modify a comparative showing a large difference?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Identify the term that sounds most suitable for a serious research paper.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="This is specifically labeled as an informal expression in the source material.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">way</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This is specifically labeled as an informal expression in the source material.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="While very common, the text contrasts 'far' and 'much' with more academic options like 'vastly'.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">far</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">While very common, the text contrasts 'far' and 'much' with more academic options like 'vastly'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="The text lists 'vastly' alongside 'significantly' and 'considerably' as formal/academic modifiers.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">vastly</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The text lists 'vastly' alongside 'significantly' and 'considerably' as formal/academic modifiers.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="This is categorized as an informal modifier for large differences.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">a lot</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This is categorized as an informal modifier for large differences.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="11">
+          <div class="q-header">
+            <span class="q-number">Question 12</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">What is the correct preposition to use after 'compared' when contrasting two nouns?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Two different prepositions are mentioned in the source as being valid for this verb.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="The word 'as' is used in 'as...as' equatives, not as a preposition following 'compared'.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">as</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The word 'as' is used in 'as...as' equatives, not as a preposition following 'compared'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="The text states that both 'compared with' and 'compared to' are acceptable.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">with</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The text states that both 'compared with' and 'compared to' are acceptable.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="The word 'from' is used with 'different', but the text specifies 'with' or 'to' for 'compared'.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">from</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The word 'from' is used with 'different', but the text specifies 'with' or 'to' for 'compared'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="The word 'than' is used with comparative adjectives (e.g., bigger than), not after 'compared'.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">than</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The word 'than' is used with comparative adjectives (e.g., bigger than), not after 'compared'.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="12">
+          <div class="q-header">
+            <span class="q-number">Question 13</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Which sentence correctly uses 'those of' to avoid repetition?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Ensure the pronoun matches the number (singular or plural) of the noun it replaces.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="While 'the ones' is possible, 'those of' is the specific formal structure shown in the material.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">The clouds in the city are darker than the ones of the countryside.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">While 'the ones' is possible, 'those of' is the specific formal structure shown in the material.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="'That of' is only used to replace singular nouns, and 'clouds' is plural.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">The clouds in the city are darker than that of the countryside.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">'That of' is only used to replace singular nouns, and 'clouds' is plural.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="This sentence avoids repetition of 'clouds' by using a possessive, but it repeats the noun 'clouds' at the end, which the structure aims to avoid.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">The clouds in the city are darker than the countryside's clouds.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This sentence avoids repetition of 'clouds' by using a possessive, but it repeats the noun 'clouds' at the end, which the structure aims to avoid.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="'Those of' correctly refers back to the plural noun 'clouds'.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">The clouds in the city are darker than those of the countryside.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">'Those of' correctly refers back to the plural noun 'clouds'.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="13">
+          <div class="q-header">
+            <span class="q-number">Question 14</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Which phrase is used to emphasize that something is exactly equal to something else?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">This phrase contains the word 'bit' and is used before an 'as...as' structure.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="This is used for negative emphasis, showing a lack of similarity.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">nothing like</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This is used for negative emphasis, showing a lack of similarity.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="This is a modifier used to show a large difference in a comparative, not equality.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">significantly</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This is a modifier used to show a large difference in a comparative, not equality.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="This is an adverb used to link sentences, not an emphasizing modifier for 'as...as'.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">similarly</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This is an adverb used to link sentences, not an emphasizing modifier for 'as...as'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="The text lists 'every bit as' alongside 'just as' for emphasizing similarity.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">every bit as</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The text lists 'every bit as' alongside 'just as' for emphasizing similarity.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="14">
+          <div class="q-header">
+            <span class="q-number">Question 15</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">In the comparison of India and Australia's land area, how is 'half' used in a noun phrase?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Remember the structure used to avoid repeating the noun 'land area'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="This is incomplete; it would need to be 'half as large as' to use the equative structure.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">half as Australia</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This is incomplete; it would need to be 'half as large as' to use the equative structure.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="This construction is ungrammatical according to the rules provided for numerical comparisons.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">half of as Australia</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This construction is ungrammatical according to the rules provided for numerical comparisons.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="Multipliers like 'twice' or 'three times' are used with 'as...as', but 'half' is usually used with 'that of' or 'as...as' without 'times'.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">half times as large as</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Multipliers like 'twice' or 'three times' are used with 'as...as', but 'half' is usually used with 'that of' or 'as...as' without 'times'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="The text provides 'half that of' as a way to make numerical comparisons using a noun phrase.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">half that of Australia</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The text provides 'half that of' as a way to make numerical comparisons using a noun phrase.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="15">
+          <div class="q-header">
+            <span class="q-number">Question 16</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Which conjunction is categorized alongside 'whereas' for joining contrasting clauses?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">This word can also refer to time, but here it is used to show a difference between two situations.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="The text classifies 'however' as an adverb used to introduce a contrasting fact, usually in a new sentence.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">however</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The text classifies 'however' as an adverb used to introduce a contrasting fact, usually in a new sentence.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="The material notes that 'whereas' and 'while' (or 'whilst') can be used to join two contrasting clauses.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">while</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The material notes that 'whereas' and 'while' (or 'whilst') can be used to join two contrasting clauses.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="The text labels 'likewise' as an adverb for similarity, not a conjunction for contrast.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">likewise</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The text labels 'likewise' as an adverb for similarity, not a conjunction for contrast.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="This is an adverbial phrase used for contrast, not a conjunction for joining clauses in one sentence.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">on the other hand</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This is an adverbial phrase used for contrast, not a conjunction for joining clauses in one sentence.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="16">
+          <div class="q-header">
+            <span class="q-number">Question 17</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">True or False: The modifier 'any' can be used to emphasize comparatives in positive statements.</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Check the specific rules for 'any' and 'no' in comparative sentences.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="The source states 'any' is used before the comparative in questions and negatives, not positive statements.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">True</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The source states 'any' is used before the comparative in questions and negatives, not positive statements.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="The text specifically notes 'no' is used in positive statements, while 'any' is for questions and negatives.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">False</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The text specifically notes 'no' is used in positive statements, while 'any' is for questions and negatives.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="17">
+          <div class="q-header">
+            <span class="q-number">Question 18</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Which of the following is a correct way to emphasize a superlative using 'far'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Look for a three-word idiomatic phrase starting with 'far' that emphasizes 'the most'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="'Better than' is a comparative structure, not a superlative one.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">far better than</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">'Better than' is a comparative structure, not a superlative one.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="The text lists 'far and away' as an emphatic modifier specifically for superlatives.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">far and away</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The text lists 'far and away' as an emphatic modifier specifically for superlatives.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="While 'far more' is used for comparatives, the question asks for emphasis on a superlative (e.g., the most).">
+            <span class="opt-label">C</span>
+            <span class="opt-text">far more</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">While 'far more' is used for comparatives, the question asks for emphasis on a superlative (e.g., the most).</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="This does not match any of the superlative emphasis structures provided in the text.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">far as</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This does not match any of the superlative emphasis structures provided in the text.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="18">
+          <div class="q-header">
+            <span class="q-number">Question 19</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">What is the primary difference between 'like' and 'as' when used before a preposition?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">One of these words is correct in phrases like '... [word] in French'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="The material distinguishes between the two, stating 'as' is the correct choice here.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Both are interchangeable before a preposition.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The material distinguishes between the two, stating 'as' is the correct choice here.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="The text explicitly states: 'We use as, not like, before a preposition.'">
+            <span class="opt-label">B</span>
+            <span class="opt-text">We use 'as' before a preposition.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The text explicitly states: 'We use as, not like, before a preposition.'</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="The material specifically prohibits 'like' in this position, favoring 'as'.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">We use 'like' before a preposition.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The material specifically prohibits 'like' in this position, favoring 'as'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="The material confirms 'as' is used in this specific grammatical environment.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Neither can be used before a preposition.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The material confirms 'as' is used in this specific grammatical environment.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="19">
+          <div class="q-header">
+            <span class="q-number">Question 20</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">When stating a comparison between two people's personalities, which is the most correct structure using 'compared'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">The word 'compared' must be followed by one of two specific prepositions.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="The structure 'Compared with/to + noun' is correctly used to contrast two nouns.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Compared with her sister, she is very talkative.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The structure 'Compared with/to + noun' is correctly used to contrast two nouns.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="This lacks the necessary noun and the adjective 'very' to complete the specific example structure provided.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">In comparison with she is talkative.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This lacks the necessary noun and the adjective 'very' to complete the specific example structure provided.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="'Than' should only be used with comparative adjectives, not with the verb/participle 'compared'.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Compared than her sister, she is very talkative.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">'Than' should only be used with comparative adjectives, not with the verb/participle 'compared'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="The standard structure provided in the text is 'Compared with' or 'In comparison to', not 'Comparing to'.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Comparing to her sister, she is very talkative.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The standard structure provided in the text is 'Compared with' or 'In comparison to', not 'Comparing to'.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="20">
+          <div class="q-header">
+            <span class="q-number">Question 21</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Which modifier is categorized as 'more informal' when showing a small difference in comparison?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Think about which term you would use with friends rather than in a formal essay.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="Marginally is listed as a more formal or academic modifier.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">marginally</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Marginally is listed as a more formal or academic modifier.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="Slightly is listed as a more formal or academic modifier.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">slightly</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Slightly is listed as a more formal or academic modifier.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="The text groups 'a little' with 'a bit' as more informal expressions.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">a little</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The text groups 'a little' with 'a bit' as more informal expressions.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Considerably is used for large differences and is considered more formal.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">considerably</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Considerably is used for large differences and is considered more formal.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="21">
+          <div class="q-header">
+            <span class="q-number">Question 22</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">In the shortened phrase 'The bigger, the better', what has been omitted?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">The full version of the sentence would be 'The bigger it is, the better it is'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="'More' is only needed if the adjective doesn't have an '-er' form, so it isn't necessarily omitted.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">the word 'more'</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">'More' is only needed if the adjective doesn't have an '-er' form, so it isn't necessarily omitted.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="The definite article 'the' is actually the most essential part of this specific structure and is not omitted.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">the definite article</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The definite article 'the' is actually the most essential part of this specific structure and is not omitted.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="This structure does not use 'and' to join the two parts of the proportional comparison.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">the conjunction 'and'</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This structure does not use 'and' to join the two parts of the proportional comparison.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="true" data-rationale="The text explains that 'The bigger, the better' is a shortened version of a 'the + comparative' clause, often omitting the verb.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">the subject and the verb 'is'</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The text explains that 'The bigger, the better' is a shortened version of a 'the + comparative' clause, often omitting the verb.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="22">
+          <div class="q-header">
+            <span class="q-number">Question 23</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Which word is correct for describing two things that are alike in a general sense?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">This word is followed by a noun to show similarity, such as 'He's very [word] his father'.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="The text states 'like / unlike + noun describes whether something is the same or different'.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">like</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The text states 'like / unlike + noun describes whether something is the same or different'.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="When followed by a noun, 'as' usually defines a role (e.g., as a teacher) rather than a general similarity.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">as</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">When followed by a noun, 'as' usually defines a role (e.g., as a teacher) rather than a general similarity.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="This is used to describe how things are different, the opposite of what the question asks.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">unlike</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This is used to describe how things are different, the opposite of what the question asks.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="This is a conjunction used to show contrast between two full clauses.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">whereas</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This is a conjunction used to show contrast between two full clauses.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="23">
+          <div class="q-header">
+            <span class="q-number">Question 24</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">Which of these adverbs is used to introduce a fact that contrasts with the previous sentence?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">This phrase is often used after 'on the one hand' and signals a switch to a different perspective.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="This adverb introduces a similar fact, not a contrasting one.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Likewise</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This adverb introduces a similar fact, not a contrasting one.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="true" data-rationale="The text lists 'on the other hand' as an adverbial phrase to introduce a contrasting fact.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">On the other hand</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The text lists 'on the other hand' as an adverbial phrase to introduce a contrasting fact.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="While is a conjunction used within a single sentence, not an adverb to introduce a new sentence.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">While</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">While is a conjunction used within a single sentence, not an adverb to introduce a new sentence.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="This adverb is used to show similarity between two facts in separate sentences.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Similarly</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">This adverb is used to show similarity between two facts in separate sentences.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="24">
+          <div class="q-header">
+            <span class="q-number">Question 25</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">How do you emphasize a comparative in a sentence that is a question?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Consider the phrasing of: 'Are you feeling [word] better today?'</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="true" data-rationale="The source material states that 'any' can be used before the comparative in questions and negatives for emphasis.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">Use the word 'any'.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The source material states that 'any' can be used before the comparative in questions and negatives for emphasis.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="The word 'no' is used for emphasis in positive statements, not in questions.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">Use the word 'no'.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The word 'no' is used for emphasis in positive statements, not in questions.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="false" data-rationale="'Just' is used to emphasize equatives (as...as), not comparatives.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">Use the word 'just'.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">'Just' is used to emphasize equatives (as...as), not comparatives.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="Vastly modifies the degree of difference but isn't specifically noted as the marker for emphasis in questions.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">Use the word 'vastly'.</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">Vastly modifies the degree of difference but isn't specifically noted as the marker for emphasis in questions.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      
+        <div class="question" data-index="25">
+          <div class="q-header">
+            <span class="q-number">Question 26</span>
+            <span class="q-of">/ 26</span>
+          </div>
+          <div class="q-text">What is the correct way to express that one thing is 2.7 times the speed of another using 'as...as'?</div>
+          
+        <div class="hint-box">
+          <button class="hint-toggle" onclick="this.parentElement.classList.toggle('show')">
+            💡 Hint
+          </button>
+          <div class="hint-content">Use the base form of the adjective between the two 'as' words.</div>
+        </div>
+      
+          <div class="options">
+        <div class="option-wrapper">
+          <button class="option" data-label="A" data-correct="false" data-rationale="While common in speech, the text focuses on 'as...as' or 'the [noun] of' for numerical comparisons.">
+            <span class="opt-label">A</span>
+            <span class="opt-text">2.7 times faster than</span>
+          </button>
+          <div class="option-feedback hidden" data-for="A">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">While common in speech, the text focuses on 'as...as' or 'the [noun] of' for numerical comparisons.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="B" data-correct="false" data-rationale="The 'as...as' structure requires the base form of the adjective, not 'more' + adjective.">
+            <span class="opt-label">B</span>
+            <span class="opt-text">2.7 times more fast as</span>
+          </button>
+          <div class="option-feedback hidden" data-for="B">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The 'as...as' structure requires the base form of the adjective, not 'more' + adjective.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="C" data-correct="true" data-rationale="The text provides 'multiplier + as + adjective + as' as a standard numerical comparison structure.">
+            <span class="opt-label">C</span>
+            <span class="opt-text">2.7 times as fast as</span>
+          </button>
+          <div class="option-feedback hidden" data-for="C">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">The text provides 'multiplier + as + adjective + as' as a standard numerical comparison structure.</div>
+          </div>
+        </div>
+      
+        <div class="option-wrapper">
+          <button class="option" data-label="D" data-correct="false" data-rationale="You cannot use a comparative adjective ('faster') inside an 'as...as' equative structure.">
+            <span class="opt-label">D</span>
+            <span class="opt-text">2.7 times as faster as</span>
+          </button>
+          <div class="option-feedback hidden" data-for="D">
+            <div class="feedback-status"></div>
+            <div class="feedback-rationale">You cannot use a comparative adjective ('faster') inside an 'as...as' equative structure.</div>
+          </div>
+        </div>
+      </div>
+          <button class="next-btn hidden">Next Question →</button>
+        </div>
+      </div>
+  <div class="results" id="results">
+    <h2>Quiz Complete!</h2>
+    <div class="score" id="score">0%</div>
+    <div class="score-text" id="score-text"></div>
+    <button class="restart-btn" onclick="restart()">Try Again</button>
+  </div>
+</div>
+<script>
+const quizData = [{"question":"In a formal academic report, which modifier is most appropriate for a small difference in data?","hint":"Consider the register required for academic writing versus casual speech.","options":[{"label":"A","text":"way","isCorrect":false,"rationale":"This modifier is identified in the material as being informal and unsuitable for academic contexts."},{"label":"B","text":"a lot","isCorrect":false,"rationale":"This is an informal modifier used to describe large, rather than small, differences."},{"label":"C","text":"marginally","isCorrect":true,"rationale":"This term is specifically categorized as a more formal or academic way to modify comparative adjectives."},{"label":"D","text":"a bit","isCorrect":false,"rationale":"While it describes a small difference, it belongs to the informal category of modifiers."}]},{"question":"Which sentence correctly uses a structure to avoid repetition in a formal context?","hint":"Identify the formal substitute for a singular noun used to avoid repeating it.","options":[{"label":"A","text":"The salary of a doctor is higher than the one of a nurse.","isCorrect":false,"rationale":"While 'the one' can avoid repetition, the text specifies 'that of' + noun as the preferred formal construction."},{"label":"B","text":"The salary of a doctor is higher than that of a nurse.","isCorrect":true,"rationale":"The phrase 'that of' is the correct formal structure to refer back to a singular noun like 'salary'."},{"label":"C","text":"The salary of a doctor is higher than a nurse's.","isCorrect":false,"rationale":"Using a possessive pronoun is noted as an informal way to avoid repetition."},{"label":"D","text":"The salary of a doctor is higher than those of a nurse.","isCorrect":false,"rationale":"This plural pronoun does not agree with the singular noun 'salary' being replaced."}]},{"question":"How should a superlative be emphasized to indicate a significant lead over others?","hint":"Look for the specific phrase used to make a 'most' statement even stronger.","options":[{"label":"A","text":"every bit","isCorrect":false,"rationale":"This phrase is used with equative 'as...as' structures to emphasize similarity, not superlatives."},{"label":"B","text":"considerably","isCorrect":false,"rationale":"While this modifies comparatives, the material lists specific terms like 'by far' or 'easily' for superlatives."},{"label":"C","text":"by far","isCorrect":true,"rationale":"The source material identifies 'by far' as a standard way to add emphasis to a superlative adjective or adverb."},{"label":"D","text":"marginally","isCorrect":false,"rationale":"This modifier is used for comparatives to show small differences, not for emphasizing superlatives."}]},{"question":"Which structure correctly describes two changes happening simultaneously and proportionally?","hint":"This structure requires the use of the word 'the' before both comparative adjectives.","options":[{"label":"A","text":"If we practice more, we get better.","isCorrect":false,"rationale":"While logically similar, this is a standard conditional rather than the specific proportional structure provided."},{"label":"B","text":"More we practice, better we get.","isCorrect":false,"rationale":"This construction lacks the required definite articles necessary for the proportional comparative structure."},{"label":"C","text":"The more we practice, the better we get.","isCorrect":true,"rationale":"The structure 'the' + comparative... 'the' + comparative correctly describes cause-and-effect changes."},{"label":"D","text":"The more we practice, the more better we get.","isCorrect":false,"rationale":"Using 'more' before an already comparative form like 'better' is grammatically redundant."}]},{"question":"Which phrase correctly completes a negative equative for strong emphasis?","hint":"Think about the specific adverbs used before 'as...as' to show a large negative gap.","options":[{"label":"A","text":"The movie was nowhere near as good as the book.","isCorrect":true,"rationale":"The source material highlights 'nowhere near' as a way to emphasize a negative equative comparison."},{"label":"B","text":"The movie was not nearly as good as the book.","isCorrect":false,"rationale":"While common, this specific phrase is not listed in the provided material's section on negative emphasis."},{"label":"C","text":"The movie was nothing as good as the book.","isCorrect":false,"rationale":"The correct emphatic negative structure is 'nothing like' or 'nowhere near', not 'nothing as'."},{"label":"D","text":"The movie was just as good as the book.","isCorrect":false,"rationale":"This structure emphasizes similarity rather than a negative difference."}]},{"question":"When comparing numerical values, which construction is grammatically correct according to the source?","hint":"You can use a noun phrase like 'the speed of' or 'the value of' after the multiplier.","options":[{"label":"A","text":"The house is three times more price than mine.","isCorrect":false,"rationale":"This is a common error; numerical comparisons should use 'as...as' or 'the [noun] of'."},{"label":"B","text":"The house is three times as price as mine.","isCorrect":false,"rationale":"The 'as...as' structure requires an adjective or adverb, not a noun like 'price'."},{"label":"C","text":"The house is three times the price of mine.","isCorrect":true,"rationale":"The text lists 'three times the price of' as a valid alternative to 'three times as expensive as'."},{"label":"D","text":"The house is three times price of mine.","isCorrect":false,"rationale":"This lacks the necessary definite article 'the' required when using the noun phrase construction."}]},{"question":"Which of the following is an adverb used to introduce a fact that is similar to the one in the previous sentence?","hint":"Focus on words that link two separate sentences by highlighting their commonalities.","options":[{"label":"A","text":"While","isCorrect":false,"rationale":"This is a conjunction, not an adverb, and it is used for contrast."},{"label":"B","text":"Whereas","isCorrect":false,"rationale":"This is a conjunction used to join two contrasting clauses within the same sentence."},{"label":"C","text":"By contrast","isCorrect":false,"rationale":"This adverb is used to introduce a contrasting fact, not a similar one."},{"label":"D","text":"Similarly","isCorrect":true,"rationale":"The text identifies 'similarly' as an adverb used to introduce a similar fact in a new sentence."}]},{"question":"Which sentence correctly distinguishes between 'like' and 'as' based on formal usage before a verb?","hint":"One of these words is preferred in formal writing when followed by a subject and a verb.","options":[{"label":"A","text":"They often eat dinner late, as they do in Spain.","isCorrect":true,"rationale":"The source states that 'as' should be used before a verb, especially in formal contexts."},{"label":"B","text":"They often eat dinner late, like they do in Spain.","isCorrect":false,"rationale":"The material notes that using 'like' before a verb is considered more informal."},{"label":"C","text":"They often eat dinner late, similar to they do in Spain.","isCorrect":false,"rationale":"The word 'similar' is typically followed by 'to + noun', not a whole clause with a verb."},{"label":"D","text":"They often eat dinner late, as in Spain.","isCorrect":false,"rationale":"While potentially correct, this removes the verb, whereas the question asks about usage 'before a verb'."}]},{"question":"In the phrase 'As a musician, I found the concert disappointing,' what is the function of the word 'As'?","hint":"Think about whether the speaker is comparing themselves to a musician or speaking from the perspective of one.","options":[{"label":"A","text":"It describes something that is similar.","isCorrect":false,"rationale":"Describing similarity is the function of 'like', not 'as' in this specific noun-based context."},{"label":"B","text":"It functions as a conjunction of contrast.","isCorrect":false,"rationale":"In this specific structure (as + noun), it defines a role rather than contrasting two clauses."},{"label":"C","text":"It emphasizes an equative comparison.","isCorrect":false,"rationale":"An equative comparison requires the 'as...as' structure, which is not present here."},{"label":"D","text":"It means 'in the role of'.","isCorrect":true,"rationale":"The text explicitly states that 'as + noun' means 'in the role of'."}]},{"question":"Which structure is used to state a specific point of difference between two similar things?","hint":"Look for a phrase that includes a verb followed by a specific conjunction used to introduce a clause.","options":[{"label":"A","text":"Compared with...","isCorrect":false,"rationale":"This phrase introduces the second item of comparison rather than stating the specific nature of the difference."},{"label":"B","text":"They differ in that...","isCorrect":true,"rationale":"The material provides 'differ in that' + clause as a way to specify a difference."},{"label":"C","text":"They are similar in terms of...","isCorrect":false,"rationale":"This structure is used to describe how things are alike, not how they differ."},{"label":"D","text":"Whereas...","isCorrect":false,"rationale":"While used for contrast, this is a conjunction for clauses rather than a structure following the verb 'differ'."}]},{"question":"Which of these is a formal way to modify a comparative showing a large difference?","hint":"Identify the term that sounds most suitable for a serious research paper.","options":[{"label":"A","text":"way","isCorrect":false,"rationale":"This is specifically labeled as an informal expression in the source material."},{"label":"B","text":"far","isCorrect":false,"rationale":"While very common, the text contrasts 'far' and 'much' with more academic options like 'vastly'."},{"label":"C","text":"vastly","isCorrect":true,"rationale":"The text lists 'vastly' alongside 'significantly' and 'considerably' as formal/academic modifiers."},{"label":"D","text":"a lot","isCorrect":false,"rationale":"This is categorized as an informal modifier for large differences."}]},{"question":"What is the correct preposition to use after 'compared' when contrasting two nouns?","hint":"Two different prepositions are mentioned in the source as being valid for this verb.","options":[{"label":"A","text":"as","isCorrect":false,"rationale":"The word 'as' is used in 'as...as' equatives, not as a preposition following 'compared'."},{"label":"B","text":"with","isCorrect":true,"rationale":"The text states that both 'compared with' and 'compared to' are acceptable."},{"label":"C","text":"from","isCorrect":false,"rationale":"The word 'from' is used with 'different', but the text specifies 'with' or 'to' for 'compared'."},{"label":"D","text":"than","isCorrect":false,"rationale":"The word 'than' is used with comparative adjectives (e.g., bigger than), not after 'compared'."}]},{"question":"Which sentence correctly uses 'those of' to avoid repetition?","hint":"Ensure the pronoun matches the number (singular or plural) of the noun it replaces.","options":[{"label":"A","text":"The clouds in the city are darker than the ones of the countryside.","isCorrect":false,"rationale":"While 'the ones' is possible, 'those of' is the specific formal structure shown in the material."},{"label":"B","text":"The clouds in the city are darker than that of the countryside.","isCorrect":false,"rationale":"'That of' is only used to replace singular nouns, and 'clouds' is plural."},{"label":"C","text":"The clouds in the city are darker than the countryside's clouds.","isCorrect":false,"rationale":"This sentence avoids repetition of 'clouds' by using a possessive, but it repeats the noun 'clouds' at the end, which the structure aims to avoid."},{"label":"D","text":"The clouds in the city are darker than those of the countryside.","isCorrect":true,"rationale":"'Those of' correctly refers back to the plural noun 'clouds'."}]},{"question":"Which phrase is used to emphasize that something is exactly equal to something else?","hint":"This phrase contains the word 'bit' and is used before an 'as...as' structure.","options":[{"label":"A","text":"nothing like","isCorrect":false,"rationale":"This is used for negative emphasis, showing a lack of similarity."},{"label":"B","text":"significantly","isCorrect":false,"rationale":"This is a modifier used to show a large difference in a comparative, not equality."},{"label":"C","text":"similarly","isCorrect":false,"rationale":"This is an adverb used to link sentences, not an emphasizing modifier for 'as...as'."},{"label":"D","text":"every bit as","isCorrect":true,"rationale":"The text lists 'every bit as' alongside 'just as' for emphasizing similarity."}]},{"question":"In the comparison of India and Australia's land area, how is 'half' used in a noun phrase?","hint":"Remember the structure used to avoid repeating the noun 'land area'.","options":[{"label":"A","text":"half as Australia","isCorrect":false,"rationale":"This is incomplete; it would need to be 'half as large as' to use the equative structure."},{"label":"B","text":"half of as Australia","isCorrect":false,"rationale":"This construction is ungrammatical according to the rules provided for numerical comparisons."},{"label":"C","text":"half times as large as","isCorrect":false,"rationale":"Multipliers like 'twice' or 'three times' are used with 'as...as', but 'half' is usually used with 'that of' or 'as...as' without 'times'."},{"label":"D","text":"half that of Australia","isCorrect":true,"rationale":"The text provides 'half that of' as a way to make numerical comparisons using a noun phrase."}]},{"question":"Which conjunction is categorized alongside 'whereas' for joining contrasting clauses?","hint":"This word can also refer to time, but here it is used to show a difference between two situations.","options":[{"label":"A","text":"however","isCorrect":false,"rationale":"The text classifies 'however' as an adverb used to introduce a contrasting fact, usually in a new sentence."},{"label":"B","text":"while","isCorrect":true,"rationale":"The material notes that 'whereas' and 'while' (or 'whilst') can be used to join two contrasting clauses."},{"label":"C","text":"likewise","isCorrect":false,"rationale":"The text labels 'likewise' as an adverb for similarity, not a conjunction for contrast."},{"label":"D","text":"on the other hand","isCorrect":false,"rationale":"This is an adverbial phrase used for contrast, not a conjunction for joining clauses in one sentence."}]},{"question":"True or False: The modifier 'any' can be used to emphasize comparatives in positive statements.","hint":"Check the specific rules for 'any' and 'no' in comparative sentences.","options":[{"label":"A","text":"True","isCorrect":false,"rationale":"The source states 'any' is used before the comparative in questions and negatives, not positive statements."},{"label":"B","text":"False","isCorrect":true,"rationale":"The text specifically notes 'no' is used in positive statements, while 'any' is for questions and negatives."}]},{"question":"Which of the following is a correct way to emphasize a superlative using 'far'?","hint":"Look for a three-word idiomatic phrase starting with 'far' that emphasizes 'the most'.","options":[{"label":"A","text":"far better than","isCorrect":false,"rationale":"'Better than' is a comparative structure, not a superlative one."},{"label":"B","text":"far and away","isCorrect":true,"rationale":"The text lists 'far and away' as an emphatic modifier specifically for superlatives."},{"label":"C","text":"far more","isCorrect":false,"rationale":"While 'far more' is used for comparatives, the question asks for emphasis on a superlative (e.g., the most)."},{"label":"D","text":"far as","isCorrect":false,"rationale":"This does not match any of the superlative emphasis structures provided in the text."}]},{"question":"What is the primary difference between 'like' and 'as' when used before a preposition?","hint":"One of these words is correct in phrases like '... [word] in French'.","options":[{"label":"A","text":"Both are interchangeable before a preposition.","isCorrect":false,"rationale":"The material distinguishes between the two, stating 'as' is the correct choice here."},{"label":"B","text":"We use 'as' before a preposition.","isCorrect":true,"rationale":"The text explicitly states: 'We use as, not like, before a preposition.'"},{"label":"C","text":"We use 'like' before a preposition.","isCorrect":false,"rationale":"The material specifically prohibits 'like' in this position, favoring 'as'."},{"label":"D","text":"Neither can be used before a preposition.","isCorrect":false,"rationale":"The material confirms 'as' is used in this specific grammatical environment."}]},{"question":"When stating a comparison between two people's personalities, which is the most correct structure using 'compared'?","hint":"The word 'compared' must be followed by one of two specific prepositions.","options":[{"label":"A","text":"Compared with her sister, she is very talkative.","isCorrect":true,"rationale":"The structure 'Compared with/to + noun' is correctly used to contrast two nouns."},{"label":"B","text":"In comparison with she is talkative.","isCorrect":false,"rationale":"This lacks the necessary noun and the adjective 'very' to complete the specific example structure provided."},{"label":"C","text":"Compared than her sister, she is very talkative.","isCorrect":false,"rationale":"'Than' should only be used with comparative adjectives, not with the verb/participle 'compared'."},{"label":"D","text":"Comparing to her sister, she is very talkative.","isCorrect":false,"rationale":"The standard structure provided in the text is 'Compared with' or 'In comparison to', not 'Comparing to'."}]},{"question":"Which modifier is categorized as 'more informal' when showing a small difference in comparison?","hint":"Think about which term you would use with friends rather than in a formal essay.","options":[{"label":"A","text":"marginally","isCorrect":false,"rationale":"Marginally is listed as a more formal or academic modifier."},{"label":"B","text":"slightly","isCorrect":false,"rationale":"Slightly is listed as a more formal or academic modifier."},{"label":"C","text":"a little","isCorrect":true,"rationale":"The text groups 'a little' with 'a bit' as more informal expressions."},{"label":"D","text":"considerably","isCorrect":false,"rationale":"Considerably is used for large differences and is considered more formal."}]},{"question":"In the shortened phrase 'The bigger, the better', what has been omitted?","hint":"The full version of the sentence would be 'The bigger it is, the better it is'.","options":[{"label":"A","text":"the word 'more'","isCorrect":false,"rationale":"'More' is only needed if the adjective doesn't have an '-er' form, so it isn't necessarily omitted."},{"label":"B","text":"the definite article","isCorrect":false,"rationale":"The definite article 'the' is actually the most essential part of this specific structure and is not omitted."},{"label":"C","text":"the conjunction 'and'","isCorrect":false,"rationale":"This structure does not use 'and' to join the two parts of the proportional comparison."},{"label":"D","text":"the subject and the verb 'is'","isCorrect":true,"rationale":"The text explains that 'The bigger, the better' is a shortened version of a 'the + comparative' clause, often omitting the verb."}]},{"question":"Which word is correct for describing two things that are alike in a general sense?","hint":"This word is followed by a noun to show similarity, such as 'He's very [word] his father'.","options":[{"label":"A","text":"like","isCorrect":true,"rationale":"The text states 'like / unlike + noun describes whether something is the same or different'."},{"label":"B","text":"as","isCorrect":false,"rationale":"When followed by a noun, 'as' usually defines a role (e.g., as a teacher) rather than a general similarity."},{"label":"C","text":"unlike","isCorrect":false,"rationale":"This is used to describe how things are different, the opposite of what the question asks."},{"label":"D","text":"whereas","isCorrect":false,"rationale":"This is a conjunction used to show contrast between two full clauses."}]},{"question":"Which of these adverbs is used to introduce a fact that contrasts with the previous sentence?","hint":"This phrase is often used after 'on the one hand' and signals a switch to a different perspective.","options":[{"label":"A","text":"Likewise","isCorrect":false,"rationale":"This adverb introduces a similar fact, not a contrasting one."},{"label":"B","text":"On the other hand","isCorrect":true,"rationale":"The text lists 'on the other hand' as an adverbial phrase to introduce a contrasting fact."},{"label":"C","text":"While","isCorrect":false,"rationale":"While is a conjunction used within a single sentence, not an adverb to introduce a new sentence."},{"label":"D","text":"Similarly","isCorrect":false,"rationale":"This adverb is used to show similarity between two facts in separate sentences."}]},{"question":"How do you emphasize a comparative in a sentence that is a question?","hint":"Consider the phrasing of: 'Are you feeling [word] better today?'","options":[{"label":"A","text":"Use the word 'any'.","isCorrect":true,"rationale":"The source material states that 'any' can be used before the comparative in questions and negatives for emphasis."},{"label":"B","text":"Use the word 'no'.","isCorrect":false,"rationale":"The word 'no' is used for emphasis in positive statements, not in questions."},{"label":"C","text":"Use the word 'just'.","isCorrect":false,"rationale":"'Just' is used to emphasize equatives (as...as), not comparatives."},{"label":"D","text":"Use the word 'vastly'.","isCorrect":false,"rationale":"Vastly modifies the degree of difference but isn't specifically noted as the marker for emphasis in questions."}]},{"question":"What is the correct way to express that one thing is 2.7 times the speed of another using 'as...as'?","hint":"Use the base form of the adjective between the two 'as' words.","options":[{"label":"A","text":"2.7 times faster than","isCorrect":false,"rationale":"While common in speech, the text focuses on 'as...as' or 'the [noun] of' for numerical comparisons."},{"label":"B","text":"2.7 times more fast as","isCorrect":false,"rationale":"The 'as...as' structure requires the base form of the adjective, not 'more' + adjective."},{"label":"C","text":"2.7 times as fast as","isCorrect":true,"rationale":"The text provides 'multiplier + as + adjective + as' as a standard numerical comparison structure."},{"label":"D","text":"2.7 times as faster as","isCorrect":false,"rationale":"You cannot use a comparative adjective ('faster') inside an 'as...as' equative structure."}]}];
+const tr = {"correct":"Correct!","incorrect":"Incorrect","next":"Next Question →","seeResults":"See Results","complete":"Quiz Complete!","scoreText":"You got {correct} out of {total} correct","tryAgain":"Try Again","rightAnswer":"Right answer","notQuite":"Not quite"};
+let currentQ = 0, correctCount = 0, answered = false;
+
+function init() {
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === 0));
+  updateProgress();
+  document.querySelectorAll('.option').forEach(opt => opt.addEventListener('click', () => selectOption(opt)));
+  document.querySelectorAll('.next-btn').forEach(btn => btn.addEventListener('click', nextQuestion));
+}
+
+function selectOption(opt) {
+  if (answered) return;
+  answered = true;
+  const q = opt.closest('.question');
+  const options = q.querySelectorAll('.option');
+  const nextBtn = q.querySelector('.next-btn');
+  const isCorrect = opt.dataset.correct === 'true';
+  
+  // Mark all options as disabled
+  options.forEach(o => o.classList.add('disabled'));
+  
+  // Style selected option
+  opt.classList.add('selected', isCorrect ? 'correct' : 'incorrect');
+  
+  // Show correct answer if wrong
+  if (!isCorrect) {
+    const correctOpt = [...options].find(o => o.dataset.correct === 'true');
+    if (correctOpt) correctOpt.classList.add('show-correct');
+  }
+  
+  if (isCorrect) correctCount++;
+  
+  // Show feedback for ALL options that have rationale
+  options.forEach(o => {
+    const wrapper = o.closest('.option-wrapper');
+    const feedback = wrapper.querySelector('.option-feedback');
+    const rationale = o.dataset.rationale;
+    const isThisCorrect = o.dataset.correct === 'true';
+    
+    if (rationale && rationale.trim()) {
+      feedback.classList.remove('hidden');
+      feedback.classList.add(isThisCorrect ? 'correct-feedback' : 'incorrect-feedback');
+      
+      const statusEl = feedback.querySelector('.feedback-status');
+      statusEl.className = 'feedback-status ' + (isThisCorrect ? 'correct' : 'incorrect');
+      statusEl.innerHTML = isThisCorrect 
+        ? '✓ ' + tr.rightAnswer
+        : '✗ ' + tr.notQuite;
+    }
+  });
+  
+  nextBtn.classList.remove('hidden');
+  if (currentQ === quizData.length - 1) nextBtn.textContent = tr.seeResults;
+}
+
+function nextQuestion() {
+  answered = false;
+  currentQ++;
+  if (currentQ >= quizData.length) { showResults(); return; }
+  document.querySelectorAll('.question').forEach((q, i) => q.classList.toggle('active', i === currentQ));
+  updateProgress();
+}
+
+function updateProgress() {
+  document.querySelector('.progress-fill').style.width = (currentQ / quizData.length * 100) + '%';
+}
+
+function showResults() {
+  document.querySelectorAll('.question').forEach(q => q.classList.remove('active'));
+  document.getElementById('results').classList.add('active');
+  const pct = Math.round((correctCount / quizData.length) * 100);
+  document.getElementById('score').textContent = pct + '%';
+  document.getElementById('score-text').textContent = tr.scoreText.replace('{correct}', correctCount).replace('{total}', quizData.length);
+  document.querySelector('.progress-fill').style.width = '100%';
+}
+
+function restart() {
+  currentQ = 0; correctCount = 0; answered = false;
+  document.getElementById('results').classList.remove('active');
+  document.querySelectorAll('.question').forEach((q, i) => {
+    q.classList.toggle('active', i === 0);
+    q.querySelectorAll('.option').forEach(o => o.classList.remove('selected', 'correct', 'incorrect', 'disabled', 'show-correct'));
+    q.querySelectorAll('.option-feedback').forEach(f => {
+      f.classList.add('hidden');
+      f.classList.remove('correct-feedback', 'incorrect-feedback');
+    });
+    const btn = q.querySelector('.next-btn');
+    btn.classList.add('hidden');
+    btn.textContent = tr.next;
+  });
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
